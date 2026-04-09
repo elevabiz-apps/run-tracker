@@ -904,6 +904,7 @@ async function addRun() {
   const btn = document.getElementById('addRunBtn');
   btn.disabled = true; btn.textContent = 'Guardando...';
 
+  try {
   const goalTime = data.settings.goalTime || 20;
   const metGoal = time >= goalTime;
   let xpGained = Math.floor(dist * 2) + time;
@@ -926,10 +927,12 @@ async function addRun() {
   addXP(xpGained);
 
   // Save run to Supabase
-  const { data: newRun } = await sb.from('runs').insert({
+  const { data: newRun, error: runError } = await sb.from('runs').insert({
     user_id: currentUser.id,
     date, dist, time_min: time, xp_gained: xpGained, met_goal: metGoal
   }).select().single();
+
+  if (runError) throw runError;
 
   data.runs.unshift({ id: newRun.id, date, dist, time, xp: xpGained, metGoal });
   data.runs.sort((a, b) => b.date.localeCompare(a.date));
@@ -938,7 +941,12 @@ async function addRun() {
   renderAll();
 
   distEl.value = ''; timeEl.value = '';
-  btn.disabled = false; btn.textContent = 'Registrar carrera';
+  } catch (e) {
+    console.error('Error al guardar carrera:', e);
+    showToast('Error al guardar: ' + (e.message || 'intentalo de nuevo'));
+  } finally {
+    btn.disabled = false; btn.textContent = 'Registrar carrera';
+  }
 }
 
 // ===================== DELETE RUN =====================
