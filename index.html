@@ -1998,39 +1998,74 @@ async function init() {
     return;
   }
 
-  // Fallback: si en 10s no se resuelve la sesion, ir a auth
-  const fallback = setTimeout(() => showScreen('auth'), 10000);
-
   let _appLoaded = false;
-  sb.auth.onAuthStateChange(async (event, session) => {
-    clearTimeout(fallback);
-    if (session) {
-      if (_appLoaded) return; // evitar doble carga (INITIAL_SESSION + SIGNED_IN)
-      _appLoaded = true;
-      currentUser = session.user;
-      const email = currentUser.email || currentUser.user_metadata?.email || '';
-      document.getElementById('userInitial').textContent = email ? email[0].toUpperCase() : '?';
-      document.getElementById('userMenuEmail').textContent = email;
-      showScreen('loading');
-      try {
-        await loadUserData();
-        document.getElementById('runDate').valueAsDate = new Date();
-        renderAll();
-        showScreen('app');
-      } catch (e) {
-        console.error('Error cargando datos:', e);
-        document.getElementById('loadingScreen').innerHTML =
-          `<div style="text-align:center;padding:40px;color:var(--text3)">
-            <div style="font-size:2rem;margin-bottom:12px;">⚠️</div>
-            <h3 style="color:var(--red);margin-bottom:8px;">Error al cargar</h3>
-            <p style="font-size:0.8rem;margin-bottom:16px;">${e.message}</p>
-            <p style="font-size:0.75rem;color:var(--text3)">Verifica que el schema.sql fue ejecutado en Supabase.</p>
-            <button onclick="signOut()" style="margin-top:16px;padding:10px 20px;background:var(--purple);border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;">Volver al login</button>
-          </div>`;
+  let _dataLoadTimeout = null;
+
+  async function loadAndShow(session) {
+    if (_appLoaded) return;
+    _appLoaded = true;
+    currentUser = session.user;
+    const email = currentUser.email || currentUser.user_metadata?.email || '';
+    document.getElementById('userInitial').textContent = email ? email[0].toUpperCase() : '?';
+    document.getElementById('userMenuEmail').textContent = email;
+    showScreen('loading');
+
+    // Timeout independiente para la fase de carga de datos
+    clearTimeout(_dataLoadTimeout);
+    _dataLoadTimeout = setTimeout(() => {
+      if (document.getElementById('loadingScreen').style.display !== 'none') {
+        _appLoaded = false;
+        showScreen('auth');
       }
-    } else {
-      _appLoaded = false; // permitir re-login
+    }, 15000);
+
+    try {
+      await loadUserData();
+      clearTimeout(_dataLoadTimeout);
+      document.getElementById('runDate').valueAsDate = new Date();
+      renderAll();
+      showScreen('app');
+    } catch (e) {
+      clearTimeout(_dataLoadTimeout);
+      _appLoaded = false;
+      console.error('Error cargando datos:', e);
+      document.getElementById('loadingScreen').innerHTML =
+        `<div style="text-align:center;padding:40px;color:var(--text3)">
+          <div style="font-size:2rem;margin-bottom:12px;">⚠️</div>
+          <h3 style="color:var(--red);margin-bottom:8px;">Error al cargar</h3>
+          <p style="font-size:0.8rem;margin-bottom:16px;">${e.message}</p>
+          <p style="font-size:0.75rem;color:var(--text3)">Verifica que el schema.sql fue ejecutado en Supabase.</p>
+          <button onclick="signOut()" style="margin-top:16px;padding:10px 20px;background:var(--purple);border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;">Volver al login</button>
+        </div>`;
+    }
+  }
+
+  // Fallback inicial por si onAuthStateChange no responde
+  const initFallback = setTimeout(() => {
+    if (document.getElementById('loadingScreen').style.display !== 'none') {
       showScreen('auth');
+    }
+  }, 8000);
+
+  sb.auth.onAuthStateChange(async (event, session) => {
+    clearTimeout(initFallback);
+    if (session) {
+      await loadAndShow(session);
+    } else {
+      // INITIAL_SESSION con null puede ser temporal (token refreshing)
+      // Solo ir a auth si ya pasó tiempo o si es un signout explícito
+      if (event === 'SIGNED_OUT') {
+        _appLoaded = false;
+        clearTimeout(_dataLoadTimeout);
+        showScreen('auth');
+      } else if (event === 'INITIAL_SESSION') {
+        // Esperar un poco por si viene un TOKEN_REFRESHED inmediato
+        setTimeout(() => {
+          if (!_appLoaded && document.getElementById('loadingScreen').style.display !== 'none') {
+            showScreen('auth');
+          }
+        }, 3000);
+      }
     }
   });
 }
