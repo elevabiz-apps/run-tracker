@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>RunQuest</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -377,9 +378,81 @@ h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
 .empty-state { text-align: center; color: var(--text3); padding: 30px 0; font-size: 0.85rem; }
 .saving-indicator { position: fixed; bottom: 88px; right: 16px; font-size: 0.7rem; color: var(--text3); opacity: 0; transition: opacity 0.3s; }
 .saving-indicator.show { opacity: 1; }
+
+/* ===================== ANIMATIONS ===================== */
+.levelup-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 350;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(13, 13, 18, 0.85);
+  backdrop-filter: blur(6px);
+  animation: fadeInOut 2.6s ease forwards;
+}
+.levelup-overlay.show { display: flex; }
+@keyframes fadeInOut {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.levelup-badge-big {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--purple-light), var(--purple-dark));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  font-weight: 700;
+  box-shadow: 0 0 48px var(--purple-glow), 0 0 96px rgba(155,93,229,0.2);
+  animation: pulseBadge 0.5s ease 0.2s both;
+}
+@keyframes pulseBadge {
+  0%   { transform: scale(0.4); }
+  70%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.levelup-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  color: var(--purple-light);
+  letter-spacing: 1px;
+  text-align: center;
+}
+.levelup-subtext {
+  font-size: 0.85rem;
+  color: var(--text2);
+}
+
+.xp-float {
+  position: fixed;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--purple-light);
+  pointer-events: none;
+  z-index: 300;
+  animation: floatUp 1.2s ease forwards;
+}
+@keyframes floatUp {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.8); }
+}
 </style>
 </head>
 <body>
+
+<!-- LEVEL UP OVERLAY -->
+<div class="levelup-overlay" id="levelupOverlay">
+  <div class="levelup-badge-big" id="levelupBadgeNum">2</div>
+  <div class="levelup-text" id="levelupTitle">Caminante</div>
+  <div class="levelup-subtext">Nivel alcanzado</div>
+</div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -675,6 +748,48 @@ function playAchievementSound() {
   } catch {}
 }
 
+// ===================== ANIMATIONS =====================
+function vibrate(pattern) {
+  try { navigator.vibrate && navigator.vibrate(pattern); } catch {}
+}
+
+function fireConfetti(intensity = 'normal') {
+  if (typeof confetti === 'undefined') return;
+  const colors = ['#9b5de5', '#c39ef7', '#f5c542', '#4ecdc4', '#ffa552'];
+  if (intensity === 'small') {
+    confetti({ particleCount: 40, spread: 55, origin: { y: 0.7 }, colors });
+  } else if (intensity === 'normal') {
+    confetti({ particleCount: 90, spread: 70, origin: { y: 0.65 }, colors });
+  } else if (intensity === 'big') {
+    confetti({ particleCount: 80, spread: 60, origin: { x: 0.25, y: 0.6 }, colors });
+    setTimeout(() => confetti({ particleCount: 80, spread: 60, origin: { x: 0.75, y: 0.6 }, colors }), 150);
+    setTimeout(() => confetti({ particleCount: 60, spread: 80, origin: { x: 0.5,  y: 0.5 }, colors }), 300);
+  }
+}
+
+function showLevelUpOverlay(level, name) {
+  const el = document.getElementById('levelupOverlay');
+  document.getElementById('levelupBadgeNum').textContent = level;
+  document.getElementById('levelupTitle').textContent = name;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2600);
+  fireConfetti('big');
+  vibrate([50, 80, 50, 80, 200]);
+}
+
+function floatXP(amount) {
+  const btn = document.getElementById('addRunBtn');
+  if (!btn) return;
+  const rect = btn.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'xp-float';
+  el.textContent = `+${amount} XP`;
+  el.style.left = (rect.left + rect.width / 2 - 30) + 'px';
+  el.style.top = (rect.top - 10) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1300);
+}
+
 // ===================== TOAST =====================
 let toastTimer;
 function showToast(msg) {
@@ -835,7 +950,7 @@ function addXP(amount) {
   }
   if (leveledUp) {
     const name = LEVEL_NAMES[Math.min(data.level - 1, LEVEL_NAMES.length - 1)];
-    showToast(`\u2b50 Nivel ${data.level}: ${name}!`);
+    setTimeout(() => showLevelUpOverlay(data.level, name), 600);
   }
 }
 
@@ -885,9 +1000,13 @@ function updateStreak(dateStr, metGoal) {
   if (data.streak > 0 && data.streak % 3 === 0) {
     data.coins += 3;
     showToast(`\u{1F525} Racha de ${data.streak} dias! +3 monedas`);
+    fireConfetti('normal');
+    vibrate([60, 80, 60]);
   }
   if (data.streak > 0 && data.streak % 5 === 0) {
     addXP(25);
+    fireConfetti('big');
+    vibrate([80, 100, 80, 100, 250]);
   }
 }
 
@@ -920,7 +1039,7 @@ async function addRun() {
     const pace = time / dist;
     if (!data.records.pace || pace < data.records.pace) { data.records.pace = pace; newRecord = true; }
   }
-  if (newRecord) { coinsGained += 5; showToast('\u{1F3C5} Nuevo record personal! +5 monedas'); }
+  if (newRecord) { coinsGained += 5; showToast('\u{1F3C5} Nuevo record personal! +5 monedas'); fireConfetti('normal'); vibrate([40, 60, 40]); }
 
   data.coins += coinsGained;
   updateStreak(date, metGoal);
@@ -939,6 +1058,9 @@ async function addRun() {
 
   await persistGameState();
   renderAll();
+
+  floatXP(xpGained);
+  if (!newRecord) { fireConfetti('small'); vibrate(80); }
 
   distEl.value = ''; timeEl.value = '';
   } catch (e) {
