@@ -67,6 +67,27 @@ CREATE TABLE IF NOT EXISTS user_achievements (
 ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "own_achievements" ON user_achievements FOR ALL USING (auth.uid() = user_id);
 
+-- 5. TABLA: Desafios semanales y mensuales
+CREATE TABLE IF NOT EXISTS user_challenges (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  challenge_period TEXT NOT NULL,   -- 'weekly' | 'monthly'
+  template_id      TEXT NOT NULL,
+  metric           TEXT NOT NULL,   -- 'days' | 'km' | 'minutes' | 'goals' | 'runs' | 'single_km'
+  label            TEXT NOT NULL,
+  icon             TEXT DEFAULT '🏃',
+  target           INTEGER NOT NULL,
+  reward_coins     INTEGER DEFAULT 0,
+  reward_xp        INTEGER DEFAULT 0,
+  completed        BOOLEAN DEFAULT FALSE,
+  period_start     DATE NOT NULL,
+  period_end       DATE NOT NULL,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE user_challenges ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_challenges" ON user_challenges FOR ALL USING (auth.uid() = user_id);
+
 -- ===================== TRIGGER: crear estado al registrarse =====================
 
 CREATE OR REPLACE FUNCTION handle_new_user()

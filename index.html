@@ -483,6 +483,72 @@ h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
 .heatmap-stat .val { font-size: 1rem; font-weight: 700; }
 .heatmap-stat .lbl { font-size: 0.6rem; color: var(--text3); margin-top: 2px; }
 
+/* ===================== CHALLENGES ===================== */
+.challenge-card {
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--bg4);
+  transition: border-color 0.2s;
+}
+.challenge-card.completed {
+  border-color: var(--green);
+  opacity: 0.7;
+}
+.challenge-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.challenge-icon { font-size: 1.3rem; flex-shrink: 0; }
+.challenge-info { flex: 1; }
+.challenge-label { font-size: 0.85rem; font-weight: 600; }
+.challenge-deadline { font-size: 0.65rem; color: var(--text3); margin-top: 2px; }
+.challenge-reward {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--gold);
+  text-align: right;
+  white-space: nowrap;
+}
+.challenge-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.challenge-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--bg4);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.challenge-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--purple), var(--purple-light));
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.challenge-card.completed .challenge-progress-fill { background: var(--green); }
+.challenge-progress-text {
+  font-size: 0.7rem;
+  color: var(--text2);
+  white-space: nowrap;
+  min-width: 40px;
+  text-align: right;
+}
+.challenge-done-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  color: var(--green);
+  font-weight: 600;
+  margin-top: 8px;
+}
+
 /* ===================== ACHIEVEMENTS ===================== */
 .achievement-grid {
   display: grid;
@@ -834,6 +900,10 @@ h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
 
   <!-- REWARDS PAGE -->
   <div class="page" id="pageRewards">
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">Desafios semanales</h3>
+    <div id="weekChallengesList"></div>
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">Desafios mensuales</h3>
+    <div id="monthChallengesList"></div>
     <h3 class="section-title" style="font-family:'Playfair Display',serif;">Tienda</h3>
     <div class="card">
       <div class="reward-item">
@@ -943,6 +1013,37 @@ const LEVEL_NAMES = [
 ];
 function xpForLevel(lv) { return Math.floor(100 * Math.pow(1.6, lv - 1)); }
 
+const WEEKLY_TEMPLATES = [
+  { id:'w_days_2',    icon:'📅', label:'Correr 2 dias esta semana',    metric:'days',      target:2,   coins:5,  xp:15 },
+  { id:'w_days_3',    icon:'📅', label:'Correr 3 dias esta semana',    metric:'days',      target:3,   coins:8,  xp:20 },
+  { id:'w_days_4',    icon:'📅', label:'Correr 4 dias esta semana',    metric:'days',      target:4,   coins:12, xp:30 },
+  { id:'w_days_5',    icon:'📅', label:'Correr 5 dias esta semana',    metric:'days',      target:5,   coins:18, xp:45 },
+  { id:'w_km_10',     icon:'📍', label:'Acumular 10 km esta semana',   metric:'km',        target:10,  coins:8,  xp:20 },
+  { id:'w_km_20',     icon:'📍', label:'Acumular 20 km esta semana',   metric:'km',        target:20,  coins:15, xp:40 },
+  { id:'w_km_30',     icon:'📍', label:'Acumular 30 km esta semana',   metric:'km',        target:30,  coins:25, xp:60 },
+  { id:'w_min_60',    icon:'⏱️', label:'Correr 60 minutos esta semana',metric:'minutes',   target:60,  coins:8,  xp:20 },
+  { id:'w_min_120',   icon:'⏱️', label:'Correr 120 min esta semana',   metric:'minutes',   target:120, coins:15, xp:40 },
+  { id:'w_goal_3',    icon:'🎯', label:'Cumplir el objetivo 3 veces',  metric:'goals',     target:3,   coins:10, xp:25 },
+  { id:'w_goal_5',    icon:'🎯', label:'Cumplir el objetivo 5 veces',  metric:'goals',     target:5,   coins:18, xp:45 },
+  { id:'w_single_5',  icon:'⚡', label:'Correr 5 km de una vez',       metric:'single_km', target:5,   coins:10, xp:25 },
+];
+
+const MONTHLY_TEMPLATES = [
+  { id:'m_days_8',    icon:'📅', label:'Correr 8 dias este mes',       metric:'days',    target:8,   coins:18,  xp:55  },
+  { id:'m_days_12',   icon:'📅', label:'Correr 12 dias este mes',      metric:'days',    target:12,  coins:28,  xp:75  },
+  { id:'m_days_16',   icon:'📅', label:'Correr 16 dias este mes',      metric:'days',    target:16,  coins:40,  xp:100 },
+  { id:'m_days_20',   icon:'📅', label:'Correr 20 dias este mes',      metric:'days',    target:20,  coins:55,  xp:130 },
+  { id:'m_km_30',     icon:'📍', label:'Acumular 30 km este mes',      metric:'km',      target:30,  coins:20,  xp:60  },
+  { id:'m_km_50',     icon:'📍', label:'Acumular 50 km este mes',      metric:'km',      target:50,  coins:35,  xp:90  },
+  { id:'m_km_100',    icon:'📍', label:'Acumular 100 km este mes',     metric:'km',      target:100, coins:60,  xp:150 },
+  { id:'m_min_200',   icon:'⏱️', label:'Correr 200 minutos este mes',  metric:'minutes', target:200, coins:20,  xp:60  },
+  { id:'m_min_400',   icon:'⏱️', label:'Correr 400 minutos este mes',  metric:'minutes', target:400, coins:40,  xp:100 },
+  { id:'m_runs_10',   icon:'🏃', label:'Registrar 10 carreras',        metric:'runs',    target:10,  coins:18,  xp:55  },
+  { id:'m_runs_20',   icon:'🏃', label:'Registrar 20 carreras',        metric:'runs',    target:20,  coins:35,  xp:90  },
+  { id:'m_goals_8',   icon:'🎯', label:'Cumplir el objetivo 8 veces',  metric:'goals',   target:8,   coins:22,  xp:65  },
+  { id:'m_goals_15',  icon:'🎯', label:'Cumplir el objetivo 15 veces', metric:'goals',   target:15,  coins:45,  xp:110 },
+];
+
 const ACHIEVEMENTS = [
   { id: 'first_run',   icon: '👟', name: 'Primeros pasos',    desc: 'Registra tu primera carrera',              check: (d) => d.runs.length >= 1 },
   { id: 'runs_10',     icon: '🎽', name: 'Rutinario',         desc: 'Registra 10 carreras',                     check: (d) => d.runs.length >= 10 },
@@ -967,7 +1068,8 @@ let data = {
   shields: 0, lastRunDate: null, rewards: [],
   settings: { goalTime: 20, shieldCost: 15, penalty: 2 },
   records: { dist: 0, time: 0, pace: null },
-  unlockedAchievements: new Set()
+  unlockedAchievements: new Set(),
+  challenges: []
 };
 let currentUser = null;
 
@@ -1027,6 +1129,144 @@ function floatXP(amount) {
   el.style.top = (rect.top - 10) + 'px';
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 1300);
+}
+
+// ===================== CHALLENGES =====================
+function getWeekStart(d = new Date()) {
+  const x = new Date(d); x.setHours(0,0,0,0);
+  x.setDate(x.getDate() - (x.getDay() + 6) % 7);
+  return x.toISOString().slice(0,10);
+}
+function getWeekEnd(d = new Date()) {
+  const x = new Date(getWeekStart(d) + 'T12:00:00');
+  x.setDate(x.getDate() + 6);
+  return x.toISOString().slice(0,10);
+}
+function getMonthStart(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+}
+function getMonthEnd(d = new Date()) {
+  return new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+}
+function formatDate(str) {
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('es', { day:'numeric', month:'short' });
+}
+
+function seededPick(arr, seedStr, count) {
+  let s = seedStr.split('').reduce((a,c) => a + c.charCodeAt(0), 0);
+  const rand = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+  const shuffled = [...arr].map(x => ({ x, r: rand() })).sort((a,b) => a.r - b.r).map(o => o.x);
+  return shuffled.slice(0, count);
+}
+
+function mapChallenge(c) {
+  return { id:c.id, period:c.challenge_period, templateId:c.template_id,
+    metric:c.metric, label:c.label, icon:c.icon || '🏃',
+    target:c.target, rewardCoins:c.reward_coins, rewardXp:c.reward_xp,
+    completed:c.completed, periodStart:c.period_start, periodEnd:c.period_end };
+}
+
+function getChallengeProgress(c) {
+  const runs = data.runs.filter(r => r.date >= c.periodStart && r.date <= c.periodEnd);
+  switch (c.metric) {
+    case 'days':      return new Set(runs.map(r => r.date)).size;
+    case 'km':        return parseFloat(runs.reduce((s,r) => s+r.dist, 0).toFixed(2));
+    case 'minutes':   return runs.reduce((s,r) => s+r.time, 0);
+    case 'goals':     return runs.filter(r => r.metGoal).length;
+    case 'runs':      return runs.length;
+    case 'single_km': return runs.length ? Math.max(...runs.map(r => r.dist)) : 0;
+    default:          return 0;
+  }
+}
+
+async function loadChallenges() {
+  const today = new Date().toISOString().slice(0,10);
+  const { data: rows } = await sb.from('user_challenges').select('*')
+    .eq('user_id', currentUser.id).gte('period_end', today).order('created_at');
+  data.challenges = (rows || []).map(mapChallenge);
+}
+
+async function ensureChallengesExist() {
+  const wStart = getWeekStart(), mStart = getMonthStart();
+  const hasWeekly  = data.challenges.some(c => c.period === 'weekly'  && c.periodStart === wStart);
+  const hasMonthly = data.challenges.some(c => c.period === 'monthly' && c.periodStart === mStart);
+  const toInsert = [];
+  if (!hasWeekly) {
+    const wEnd = getWeekEnd();
+    seededPick(WEEKLY_TEMPLATES, wStart, 3).forEach(t => toInsert.push({
+      user_id:currentUser.id, challenge_period:'weekly', template_id:t.id,
+      metric:t.metric, label:t.label, icon:t.icon, target:t.target,
+      reward_coins:t.coins, reward_xp:t.xp, period_start:wStart, period_end:wEnd
+    }));
+  }
+  if (!hasMonthly) {
+    const mEnd = getMonthEnd();
+    seededPick(MONTHLY_TEMPLATES, mStart, 3).forEach(t => toInsert.push({
+      user_id:currentUser.id, challenge_period:'monthly', template_id:t.id,
+      metric:t.metric, label:t.label, icon:t.icon, target:t.target,
+      reward_coins:t.coins, reward_xp:t.xp, period_start:mStart, period_end:mEnd
+    }));
+  }
+  if (toInsert.length > 0) {
+    await sb.from('user_challenges').insert(toInsert);
+    await loadChallenges();
+  }
+}
+
+async function checkChallengeCompletions() {
+  const toComplete = [];
+  for (const c of data.challenges) {
+    if (c.completed) continue;
+    if (getChallengeProgress(c) >= c.target) { c.completed = true; toComplete.push(c); }
+  }
+  if (!toComplete.length) return;
+  for (const c of toComplete) {
+    await sb.from('user_challenges').update({ completed:true }).eq('id', c.id);
+    data.coins += c.rewardCoins;
+    addXP(c.rewardXp);
+  }
+  await persistGameState();
+  toComplete.forEach((c, i) => setTimeout(() => {
+    showToast(`\u2705 Desafio completado!\n+${c.rewardCoins} monedas +${c.rewardXp} XP`);
+    fireConfetti('normal'); vibrate([60, 80, 60]);
+  }, i * 1400));
+  renderAll();
+}
+
+function renderChallenges() {
+  const mkSection = (list, elId) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!list.length) { el.innerHTML = '<div class="card"><div class="empty-state">Cargando desafios...</div></div>'; return; }
+    el.innerHTML = list.map(c => {
+      const prog = getChallengeProgress(c);
+      const pct  = Math.min(100, (prog / c.target) * 100);
+      const unit = { days:'dias', km:'km', minutes:'min', goals:'veces', runs:'carreras', single_km:'km' }[c.metric] || '';
+      const done = c.completed;
+      return `<div class="challenge-card ${done ? 'completed' : ''}">
+        <div class="challenge-header">
+          <span class="challenge-icon">${c.icon}</span>
+          <div class="challenge-info">
+            <div class="challenge-label">${c.label}</div>
+            <div class="challenge-deadline">Hasta el ${formatDate(c.periodEnd)}</div>
+          </div>
+          <div class="challenge-reward">+${c.rewardCoins} \u{1FA99}<br>+${c.rewardXp} XP</div>
+        </div>
+        ${done
+          ? `<div class="challenge-done-badge">\u2705 Completado &mdash; +${c.rewardCoins} monedas cobradas</div>`
+          : `<div class="challenge-progress-wrap">
+               <div class="challenge-progress-bar"><div class="challenge-progress-fill" style="width:${pct}%"></div></div>
+               <span class="challenge-progress-text">${c.metric === 'km' ? prog.toFixed(1) : prog} / ${c.target} ${unit}</span>
+             </div>`
+        }
+      </div>`;
+    }).join('');
+  };
+  const today = new Date().toISOString().slice(0,10);
+  const wStart = getWeekStart(), mStart = getMonthStart();
+  mkSection(data.challenges.filter(c => c.period === 'weekly'  && c.periodStart === wStart), 'weekChallengesList');
+  mkSection(data.challenges.filter(c => c.period === 'monthly' && c.periodStart === mStart), 'monthChallengesList');
 }
 
 // ===================== ACHIEVEMENTS =====================
@@ -1136,7 +1376,7 @@ async function signInWithGoogle() {
 
 async function signOut() {
   await sb.auth.signOut();
-  data = { runs: [], xp: 0, level: 1, coins: 0, streak: 0, bestStreak: 0, shields: 0, lastRunDate: null, rewards: [], settings: { goalTime: 20, shieldCost: 15, penalty: 2 }, records: { dist: 0, time: 0, pace: null }, unlockedAchievements: new Set() };
+  data = { runs: [], xp: 0, level: 1, coins: 0, streak: 0, bestStreak: 0, shields: 0, lastRunDate: null, rewards: [], settings: { goalTime: 20, shieldCost: 15, penalty: 2 }, records: { dist: 0, time: 0, pace: null }, unlockedAchievements: new Set(), challenges: [] };
   document.getElementById('mainApp').style.display = 'none';
   document.getElementById('authScreen').style.display = 'flex';
   document.getElementById('userMenu').classList.remove('show');
@@ -1200,6 +1440,10 @@ async function loadUserData() {
   // Load achievements
   const { data: achs } = await sb.from('user_achievements').select('achievement_id').eq('user_id', currentUser.id);
   data.unlockedAchievements = new Set((achs || []).map(a => a.achievement_id));
+
+  // Load challenges and auto-generate if missing
+  await loadChallenges();
+  await ensureChallengesExist();
 }
 
 // ===================== DATA PERSISTENCE =====================
@@ -1350,6 +1594,7 @@ async function addRun() {
   floatXP(xpGained);
   if (!newRecord) { fireConfetti('small'); vibrate(80); }
   await checkAchievements();
+  await checkChallengeCompletions();
 
   distEl.value = ''; timeEl.value = '';
   } catch (e) {
@@ -1439,8 +1684,9 @@ async function confirmReset() {
   await sb.from('runs').delete().eq('user_id', currentUser.id);
   await sb.from('rewards').delete().eq('user_id', currentUser.id);
   await sb.from('user_achievements').delete().eq('user_id', currentUser.id);
+  await sb.from('user_challenges').delete().eq('user_id', currentUser.id);
   await sb.from('user_game_state').delete().eq('user_id', currentUser.id);
-  data = { runs: [], xp: 0, level: 1, coins: 0, streak: 0, bestStreak: 0, shields: 0, lastRunDate: null, rewards: [], settings: { goalTime: 20, shieldCost: 15, penalty: 2 }, records: { dist: 0, time: 0, pace: null }, unlockedAchievements: new Set() };
+  data = { runs: [], xp: 0, level: 1, coins: 0, streak: 0, bestStreak: 0, shields: 0, lastRunDate: null, rewards: [], settings: { goalTime: 20, shieldCost: 15, penalty: 2 }, records: { dist: 0, time: 0, pace: null }, unlockedAchievements: new Set(), challenges: [] };
   await sb.from('user_game_state').insert({ user_id: currentUser.id });
   renderAll();
 }
@@ -1465,6 +1711,7 @@ function renderAll() {
   renderRewards();
   renderSettings();
   renderAchievements();
+  renderChallenges();
 }
 
 function renderLog() {
