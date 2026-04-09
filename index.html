@@ -902,10 +902,16 @@ h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
   <div class="page" id="pageRewards">
     <h3 class="section-title" style="font-family:'Playfair Display',serif;">
       Desafios semanales
-      <button id="refreshChallengesBtn" onclick="refreshChallenges()" style="background:none;border:none;color:var(--purple-light);font-size:1.1rem;cursor:pointer;padding:2px 6px;" title="Actualizar desafios">&#8635;</button>
+      <div style="display:flex;gap:4px;align-items:center;">
+        <button onclick="openChallengeModal('weekly')" style="background:none;border:none;color:var(--purple-light);font-size:1.4rem;cursor:pointer;line-height:1;" title="Nuevo desafio semanal">+</button>
+        <button id="refreshChallengesBtn" onclick="refreshChallenges()" style="background:none;border:none;color:var(--purple-light);font-size:1.1rem;cursor:pointer;padding:2px 4px;" title="Actualizar desafios">&#8635;</button>
+      </div>
     </h3>
     <div id="weekChallengesList"></div>
-    <h3 class="section-title" style="font-family:'Playfair Display',serif;">Desafios mensuales</h3>
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">
+      Desafios mensuales
+      <button onclick="openChallengeModal('monthly')" style="background:none;border:none;color:var(--purple-light);font-size:1.4rem;cursor:pointer;line-height:1;" title="Nuevo desafio mensual">+</button>
+    </h3>
     <div id="monthChallengesList"></div>
     <h3 class="section-title" style="font-family:'Playfair Display',serif;">Tienda</h3>
     <div class="card">
@@ -992,6 +998,48 @@ h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
     <div style="display:flex;gap:10px;margin-top:16px;">
       <button class="btn btn-outline" style="flex:1" onclick="closeRewardModal()">Cancelar</button>
       <button class="btn btn-primary" style="flex:1" onclick="saveReward()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOM CHALLENGE MODAL -->
+<div class="modal-overlay" id="challengeModal">
+  <div class="modal">
+    <h3 id="challengeModalTitle">Nuevo desafio semanal</h3>
+    <div class="form-group">
+      <label>Nombre del desafio</label>
+      <input type="text" id="chalLabel" placeholder="Ej: Correr todos los dias">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label>Tipo de meta</label>
+        <select id="chalMetric">
+          <option value="days">Dias corridos</option>
+          <option value="km">Kilometros</option>
+          <option value="minutes">Minutos</option>
+          <option value="goals">Objetivos cumplidos</option>
+          <option value="runs">Carreras registradas</option>
+          <option value="single_km">Km en una sesion</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Objetivo</label>
+        <input type="number" id="chalTarget" min="1" placeholder="5">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group">
+        <label>Recompensa monedas</label>
+        <input type="number" id="chalCoins" min="0" placeholder="10">
+      </div>
+      <div class="form-group">
+        <label>Recompensa XP</label>
+        <input type="number" id="chalXp" min="0" placeholder="25">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px;">
+      <button class="btn btn-outline" style="flex:1" onclick="closeChallengeModal()">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1" id="chalSaveBtn" onclick="saveCustomChallenge()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1236,6 +1284,57 @@ async function refreshChallenges() {
   if (btn) { btn.disabled = false; btn.textContent = '↻'; }
 }
 
+let _chalPeriod = 'weekly';
+function openChallengeModal(period) {
+  _chalPeriod = period;
+  document.getElementById('challengeModalTitle').textContent =
+    period === 'weekly' ? 'Nuevo desafio semanal' : 'Nuevo desafio mensual';
+  document.getElementById('chalLabel').value = '';
+  document.getElementById('chalTarget').value = '';
+  document.getElementById('chalCoins').value = '';
+  document.getElementById('chalXp').value = '';
+  document.getElementById('challengeModal').classList.add('show');
+}
+function closeChallengeModal() {
+  document.getElementById('challengeModal').classList.remove('show');
+}
+
+async function saveCustomChallenge() {
+  const label  = document.getElementById('chalLabel').value.trim();
+  const metric = document.getElementById('chalMetric').value;
+  const target = parseInt(document.getElementById('chalTarget').value) || 0;
+  const coins  = parseInt(document.getElementById('chalCoins').value) || 0;
+  const xp     = parseInt(document.getElementById('chalXp').value) || 0;
+  if (!label || target <= 0) return;
+
+  const btn = document.getElementById('chalSaveBtn');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  const iconMap = { days:'📅', km:'📍', minutes:'⏱️', goals:'🎯', runs:'🏃', single_km:'⚡' };
+  const periodStart = _chalPeriod === 'weekly' ? getWeekStart()  : getMonthStart();
+  const periodEnd   = _chalPeriod === 'weekly' ? getWeekEnd()    : getMonthEnd();
+
+  const { data: row, error } = await sb.from('user_challenges').insert({
+    user_id: currentUser.id,
+    challenge_period: _chalPeriod,
+    template_id: 'custom_' + Date.now(),
+    metric, label, icon: iconMap[metric] || '✏️',
+    target, reward_coins: coins, reward_xp: xp,
+    period_start: periodStart, period_end: periodEnd
+  }).select().single();
+
+  if (!error && row) data.challenges.push(mapChallenge(row));
+  renderChallenges();
+  closeChallengeModal();
+  btn.disabled = false; btn.textContent = 'Guardar';
+}
+
+async function deleteChallenge(id) {
+  await sb.from('user_challenges').delete().eq('id', id).eq('user_id', currentUser.id);
+  data.challenges = data.challenges.filter(c => c.id !== id);
+  renderChallenges();
+}
+
 async function checkChallengeCompletions() {
   const toComplete = [];
   for (const c of data.challenges) {
@@ -1266,6 +1365,7 @@ function renderChallenges() {
       const pct  = Math.min(100, (prog / c.target) * 100);
       const unit = { days:'dias', km:'km', minutes:'min', goals:'veces', runs:'carreras', single_km:'km' }[c.metric] || '';
       const done = c.completed;
+      const isCustom = c.templateId && c.templateId.startsWith('custom_');
       return `<div class="challenge-card ${done ? 'completed' : ''}">
         <div class="challenge-header">
           <span class="challenge-icon">${c.icon}</span>
@@ -1273,7 +1373,10 @@ function renderChallenges() {
             <div class="challenge-label">${c.label}</div>
             <div class="challenge-deadline">Hasta el ${formatDate(c.periodEnd)}</div>
           </div>
-          <div class="challenge-reward">+${c.rewardCoins} \u{1FA99}<br>+${c.rewardXp} XP</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <div class="challenge-reward">+${c.rewardCoins} \u{1FA99}<br>+${c.rewardXp} XP</div>
+            ${isCustom ? `<button onclick="deleteChallenge('${c.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:0.75rem;padding:0;" title="Eliminar">&times; eliminar</button>` : ''}
+          </div>
         </div>
         ${done
           ? `<div class="challenge-done-badge">\u2705 Completado &mdash; +${c.rewardCoins} monedas cobradas</div>`
