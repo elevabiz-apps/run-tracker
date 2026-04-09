@@ -1148,28 +1148,37 @@ async function init() {
     return;
   }
 
-  // Auth state listener
+  // Fallback: si en 10s no se resuelve la sesion, ir a auth
+  const fallback = setTimeout(() => showScreen('auth'), 10000);
+
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-      if (session) {
-        currentUser = session.user;
-        document.getElementById('userInitial').textContent = currentUser.email[0].toUpperCase();
-        document.getElementById('userMenuEmail').textContent = currentUser.email;
-        showScreen('loading');
+    clearTimeout(fallback);
+    if (session) {
+      currentUser = session.user;
+      const email = currentUser.email || currentUser.user_metadata?.email || '';
+      document.getElementById('userInitial').textContent = email ? email[0].toUpperCase() : '?';
+      document.getElementById('userMenuEmail').textContent = email;
+      showScreen('loading');
+      try {
         await loadUserData();
         document.getElementById('runDate').valueAsDate = new Date();
         renderAll();
         showScreen('app');
-      } else {
-        showScreen('auth');
+      } catch (e) {
+        console.error('Error cargando datos:', e);
+        document.getElementById('loadingScreen').innerHTML =
+          `<div style="text-align:center;padding:40px;color:var(--text3)">
+            <div style="font-size:2rem;margin-bottom:12px;">⚠️</div>
+            <h3 style="color:var(--red);margin-bottom:8px;">Error al cargar</h3>
+            <p style="font-size:0.8rem;margin-bottom:16px;">${e.message}</p>
+            <p style="font-size:0.75rem;color:var(--text3)">Verifica que el schema.sql fue ejecutado en Supabase.</p>
+            <button onclick="signOut()" style="margin-top:16px;padding:10px 20px;background:var(--purple);border:none;border-radius:10px;color:#fff;cursor:pointer;font-family:inherit;">Volver al login</button>
+          </div>`;
       }
-    } else if (event === 'SIGNED_OUT') {
+    } else {
       showScreen('auth');
     }
   });
-
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) showScreen('auth');
 }
 
 init();
