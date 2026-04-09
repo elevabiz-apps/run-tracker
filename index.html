@@ -379,6 +379,110 @@ h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
 .saving-indicator { position: fixed; bottom: 88px; right: 16px; font-size: 0.7rem; color: var(--text3); opacity: 0; transition: opacity 0.3s; }
 .saving-indicator.show { opacity: 1; }
 
+/* ===================== HEATMAP ===================== */
+.heatmap-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.heatmap-nav button {
+  background: var(--bg3);
+  border: 1px solid var(--bg4);
+  border-radius: var(--radius-sm);
+  color: var(--text2);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+.heatmap-nav button:active { background: var(--bg4); }
+.heatmap-month-label {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem;
+  color: var(--text);
+}
+.heatmap-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.heatmap-weekday {
+  text-align: center;
+  font-size: 0.6rem;
+  color: var(--text3);
+  font-weight: 600;
+  padding: 2px 0;
+}
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.heatmap-day {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: var(--bg4);
+  position: relative;
+  cursor: default;
+}
+.heatmap-day.empty { background: transparent; }
+.heatmap-day.run-no-goal { background: rgba(155, 93, 229, 0.3); }
+.heatmap-day.run-goal    { background: var(--purple); }
+.heatmap-day.run-multi   { background: var(--purple-light); }
+.heatmap-day.today::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--gold);
+  border-radius: 7px;
+  pointer-events: none;
+}
+.heatmap-day-num {
+  position: absolute;
+  bottom: 3px;
+  right: 4px;
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.5);
+  line-height: 1;
+}
+.heatmap-day.run-goal .heatmap-day-num,
+.heatmap-day.run-multi .heatmap-day-num { color: rgba(255,255,255,0.85); }
+.heatmap-legend {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.heatmap-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.65rem;
+  color: var(--text3);
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.heatmap-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.heatmap-stat {
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  padding: 10px 8px;
+  text-align: center;
+}
+.heatmap-stat .val { font-size: 1rem; font-weight: 700; }
+.heatmap-stat .lbl { font-size: 0.6rem; color: var(--text3); margin-top: 2px; }
+
 /* ===================== ACHIEVEMENTS ===================== */
 .achievement-grid {
   display: grid;
@@ -668,6 +772,35 @@ h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
 
   <!-- STATS PAGE -->
   <div class="page" id="pageStats">
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">Calendario</h3>
+    <div class="card">
+      <div class="heatmap-nav">
+        <button onclick="changeHeatmapMonth(-1)">&#8592;</button>
+        <span class="heatmap-month-label" id="heatmapLabel"></span>
+        <button onclick="changeHeatmapMonth(1)">&#8594;</button>
+      </div>
+      <div class="heatmap-weekdays">
+        <div class="heatmap-weekday">L</div>
+        <div class="heatmap-weekday">M</div>
+        <div class="heatmap-weekday">X</div>
+        <div class="heatmap-weekday">J</div>
+        <div class="heatmap-weekday">V</div>
+        <div class="heatmap-weekday">S</div>
+        <div class="heatmap-weekday">D</div>
+      </div>
+      <div class="heatmap-grid" id="heatmapGrid"></div>
+      <div class="heatmap-legend">
+        <div class="heatmap-legend-item"><div class="legend-dot" style="background:var(--bg4)"></div>Sin correr</div>
+        <div class="heatmap-legend-item"><div class="legend-dot" style="background:rgba(155,93,229,0.3)"></div>Sin objetivo</div>
+        <div class="heatmap-legend-item"><div class="legend-dot" style="background:var(--purple)"></div>Objetivo</div>
+        <div class="heatmap-legend-item"><div class="legend-dot" style="background:var(--purple-light)"></div>Varios</div>
+      </div>
+      <div class="heatmap-stats-row">
+        <div class="heatmap-stat"><div class="val" id="hmDays">0</div><div class="lbl">dias corridos</div></div>
+        <div class="heatmap-stat"><div class="val" id="hmDist">0</div><div class="lbl">km del mes</div></div>
+        <div class="heatmap-stat"><div class="val" id="hmGoals">0</div><div class="lbl">objetivos cumplidos</div></div>
+      </div>
+    </div>
     <h3 class="section-title" style="font-family:'Playfair Display',serif;">Estadisticas semanales</h3>
     <div class="card">
       <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
@@ -1379,6 +1512,71 @@ function renderSettings() {
   document.getElementById('penaltyAmount').value = data.settings.penalty || 2;
 }
 
+// ===================== HEATMAP =====================
+let heatmapYear = new Date().getFullYear();
+let heatmapMonth = new Date().getMonth(); // 0-indexed
+
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function changeHeatmapMonth(delta) {
+  heatmapMonth += delta;
+  if (heatmapMonth < 0)  { heatmapMonth = 11; heatmapYear--; }
+  if (heatmapMonth > 11) { heatmapMonth = 0;  heatmapYear++; }
+  renderHeatmap();
+}
+
+function renderHeatmap() {
+  // Build a lookup: dateStr -> array of runs
+  const runsByDate = {};
+  data.runs.forEach(r => {
+    if (!runsByDate[r.date]) runsByDate[r.date] = [];
+    runsByDate[r.date].push(r);
+  });
+
+  const year = heatmapYear, month = heatmapMonth;
+  document.getElementById('heatmapLabel').textContent = `${MONTH_NAMES[month]} ${year}`;
+
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Monday=0 offset
+  const startOffset = (firstDay.getDay() + 6) % 7;
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const grid = document.getElementById('heatmapGrid');
+
+  let html = '';
+  // Empty cells before first day
+  for (let i = 0; i < startOffset; i++) html += '<div class="heatmap-day empty"></div>';
+
+  let monthDays = 0, monthDist = 0, monthGoals = 0;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const runs = runsByDate[dateStr] || [];
+    const isToday = dateStr === todayStr;
+    let cls = 'heatmap-day';
+    if (runs.length > 1) {
+      cls += ' run-multi';
+    } else if (runs.length === 1) {
+      cls += runs[0].metGoal ? ' run-goal' : ' run-no-goal';
+    }
+    if (isToday) cls += ' today';
+
+    if (runs.length > 0) {
+      monthDays++;
+      monthDist += runs.reduce((s, r) => s + r.dist, 0);
+      monthGoals += runs.filter(r => r.metGoal).length;
+    }
+
+    html += `<div class="${cls}" title="${dateStr}"><span class="heatmap-day-num">${d}</span></div>`;
+  }
+
+  grid.innerHTML = html;
+  document.getElementById('hmDays').textContent = monthDays;
+  document.getElementById('hmDist').textContent = monthDist.toFixed(1);
+  document.getElementById('hmGoals').textContent = monthGoals;
+}
+
 // ===================== WEEKLY CHART =====================
 function renderWeekly() {
   const days = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
@@ -1417,7 +1615,7 @@ function switchTab(pageId, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById(pageId).classList.add('active');
   el.classList.add('active');
-  if (pageId === 'pageStats') renderWeekly();
+  if (pageId === 'pageStats') { renderHeatmap(); renderWeekly(); }
 }
 
 // ===================== INIT =====================
