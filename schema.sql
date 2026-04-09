@@ -55,6 +55,18 @@ CREATE POLICY "own_game_state" ON user_game_state FOR ALL USING (auth.uid() = us
 CREATE POLICY "own_runs"       ON runs             FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "own_rewards"    ON rewards          FOR ALL USING (auth.uid() = user_id);
 
+-- 4. TABLA: Logros desbloqueados por usuario
+CREATE TABLE IF NOT EXISTS user_achievements (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  achievement_id TEXT NOT NULL,
+  unlocked_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, achievement_id)
+);
+
+ALTER TABLE user_achievements ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_achievements" ON user_achievements FOR ALL USING (auth.uid() = user_id);
+
 -- ===================== TRIGGER: crear estado al registrarse =====================
 
 CREATE OR REPLACE FUNCTION handle_new_user()
