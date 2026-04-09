@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>RunQuest</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0d0d12;
+  --bg2: #16161f;
+  --bg3: #1e1e2a;
+  --bg4: #272735;
+  --purple: #9b5de5;
+  --purple-light: #c39ef7;
+  --purple-dark: #6b3fa0;
+  --purple-glow: rgba(155, 93, 229, 0.3);
+  --text: #e8e8ef;
+  --text2: #a0a0b4;
+  --text3: #6a6a80;
+  --gold: #f5c542;
+  --green: #4ecdc4;
+  --red: #ff6b6b;
+  --orange: #ffa552;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
+
+/* ===================== LOADING ===================== */
+#loadingScreen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  gap: 16px;
+}
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--bg4);
+  border-top-color: var(--purple);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===================== AUTH ===================== */
+#authScreen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 500;
+  overflow-y: auto;
+}
+.auth-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.4rem;
+  background: linear-gradient(135deg, var(--purple-light), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+.auth-sub {
+  color: var(--text3);
+  font-size: 0.85rem;
+  margin-bottom: 36px;
+  text-align: center;
+}
+.auth-box {
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg2);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  border: 1px solid var(--bg4);
+}
+.auth-toggle {
+  display: flex;
+  gap: 0;
+  background: var(--bg3);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  margin-bottom: 24px;
+}
+.auth-toggle button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text3);
+  transition: all 0.2s;
+}
+.auth-toggle button.active {
+  background: var(--purple);
+  color: #fff;
+}
+.auth-divider {
+  text-align: center;
+  position: relative;
+  margin: 18px 0;
+  color: var(--text3);
+  font-size: 0.78rem;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: calc(50% - 24px);
+  height: 1px;
+  background: var(--bg4);
+}
+.auth-divider::before { left: 0; }
+.auth-divider::after { right: 0; }
+.btn-google {
+  width: 100%;
+  padding: 12px;
+  background: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: opacity 0.2s;
+}
+.btn-google:active { opacity: 0.8; }
+.google-icon {
+  width: 20px;
+  height: 20px;
+}
+.auth-error {
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--red);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  margin-bottom: 14px;
+  display: none;
+}
+
+/* ===================== MAIN APP ===================== */
+#mainApp { display: none; padding-bottom: 80px; }
+
+.app-header {
+  padding: 16px 20px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.app-header h1 {
+  font-size: 1.6rem;
+  background: linear-gradient(135deg, var(--purple-light), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+}
+.user-menu {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background: var(--bg2);
+  border: 1px solid var(--bg4);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  min-width: 160px;
+  z-index: 50;
+  display: none;
+}
+.user-menu.show { display: block; }
+.user-menu-item {
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-radius: 8px;
+  color: var(--text2);
+}
+.user-menu-item:hover { background: var(--bg3); }
+.user-menu-email { font-size: 0.72rem; color: var(--text3); padding: 6px 12px; border-bottom: 1px solid var(--bg4); margin-bottom: 4px; }
+
+/* ===================== TABS ===================== */
+.tabs {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  background: var(--bg2);
+  border-top: 1px solid var(--bg4);
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tab {
+  flex: 1;
+  padding: 10px 4px 8px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text3);
+  font-size: 0.7rem;
+  font-weight: 500;
+  transition: color 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.tab svg { width: 22px; height: 22px; }
+.tab.active { color: var(--purple-light); }
+
+/* ===================== PAGES ===================== */
+.page { display: none; padding: 16px 20px; }
+.page.active { display: block; }
+
+/* ===================== CARDS ===================== */
+.card {
+  background: var(--bg2);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-bottom: 14px;
+  border: 1px solid var(--bg4);
+}
+
+/* ===================== LEVEL ===================== */
+.level-section { padding: 14px 20px; }
+.level-bar-wrap { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.level-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  box-shadow: 0 0 16px var(--purple-glow);
+}
+.level-info { flex: 1; }
+.level-info .level-title { font-family: 'Playfair Display', serif; font-size: 1rem; margin-bottom: 6px; }
+.level-info .level-title span { color: var(--text2); font-size: 0.8rem; font-family: 'Inter', sans-serif; }
+.xp-bar { width: 100%; height: 8px; background: var(--bg4); border-radius: 4px; overflow: hidden; }
+.xp-bar-fill { height: 100%; background: linear-gradient(90deg, var(--purple), var(--purple-light)); border-radius: 4px; transition: width 0.5s ease; }
+.xp-label { font-size: 0.72rem; color: var(--text3); margin-top: 4px; }
+
+/* ===================== STATS ROW ===================== */
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 20px; }
+.stat-card { background: var(--bg2); border-radius: var(--radius-sm); padding: 14px 10px; text-align: center; border: 1px solid var(--bg4); }
+.stat-card .stat-value { font-size: 1.15rem; font-weight: 700; }
+.stat-card .stat-label { font-size: 0.65rem; color: var(--text3); margin-top: 2px; }
+
+/* ===================== STREAK ===================== */
+.streak-display { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; background: linear-gradient(135deg, var(--bg3), var(--bg2)); border-radius: var(--radius-sm); margin: 0 20px 8px; border: 1px solid var(--bg4); }
+.streak-display .flame { font-size: 1.6rem; }
+.streak-display .streak-num { font-size: 1.5rem; font-weight: 700; color: var(--orange); }
+.streak-display .streak-label { font-size: 0.75rem; color: var(--text2); }
+.streak-protector { text-align: center; margin-bottom: 14px; }
+.streak-protector span { font-size: 0.72rem; color: var(--text3); }
+.shield-count { color: var(--green); font-weight: 600; }
+
+/* ===================== COINS ===================== */
+.coins-bar { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px; font-weight: 600; color: var(--gold); font-size: 1rem; }
+
+/* ===================== BUTTONS ===================== */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 20px; border: none; border-radius: var(--radius-sm); font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #fff; }
+.btn-primary { background: linear-gradient(135deg, var(--purple), var(--purple-dark)); width: 100%; }
+.btn-primary:active { transform: scale(0.97); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { padding: 8px 14px; font-size: 0.78rem; }
+.btn-outline { background: transparent; border: 1px solid var(--purple); color: var(--purple-light); }
+.btn-gold { background: linear-gradient(135deg, var(--gold), #e0a800); color: #1a1a2e; }
+.btn-danger { background: var(--red); }
+.btn-green { background: var(--green); color: #1a1a2e; }
+
+/* ===================== FORMS ===================== */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 0.78rem; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
+.form-group input, .form-group select { width: 100%; padding: 12px 14px; background: var(--bg3); border: 1px solid var(--bg4); border-radius: var(--radius-sm); color: var(--text); font-size: 0.95rem; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s; }
+.form-group input:focus, .form-group select:focus { border-color: var(--purple); }
+.form-group select option { background: var(--bg3); }
+
+/* ===================== LOG ===================== */
+.log-entry { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--bg4); }
+.log-entry:last-child { border-bottom: none; }
+.log-date { font-size: 0.78rem; color: var(--text3); }
+.log-stats { display: flex; gap: 14px; font-size: 0.85rem; align-items: center; }
+.log-stats span { color: var(--text2); }
+.log-xp { color: var(--purple-light) !important; font-weight: 600; }
+.log-delete { background: none; border: none; color: var(--text3); cursor: pointer; padding: 4px; font-size: 1rem; }
+.goal-indicator { font-size: 0.62rem; padding: 2px 6px; border-radius: 8px; font-weight: 500; }
+.goal-met { background: rgba(78, 205, 196, 0.15); color: var(--green); }
+.goal-missed { background: rgba(255, 107, 107, 0.15); color: var(--red); }
+
+/* ===================== REWARDS ===================== */
+.reward-item { display: flex; align-items: center; justify-content: space-between; padding: 14px; background: var(--bg3); border-radius: var(--radius-sm); margin-bottom: 10px; }
+.reward-info h4 { font-size: 0.9rem; margin-bottom: 2px; }
+.reward-info .reward-meta { font-size: 0.7rem; color: var(--text3); }
+.reward-actions { display: flex; gap: 6px; align-items: center; }
+.redeemed-badge { font-size: 0.65rem; background: var(--green); color: #1a1a2e; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+
+/* ===================== WEEKLY ===================== */
+.weekly-chart { display: flex; align-items: flex-end; justify-content: space-between; height: 130px; padding: 10px 0; gap: 6px; }
+.weekly-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+.weekly-bar { width: 100%; max-width: 32px; background: linear-gradient(180deg, var(--purple-light), var(--purple)); border-radius: 6px 6px 0 0; min-height: 2px; transition: height 0.4s ease; }
+.weekly-bar.empty { background: var(--bg4); height: 2px !important; }
+.weekly-day { font-size: 0.65rem; color: var(--text3); margin-top: 6px; }
+.weekly-val { font-size: 0.6rem; color: var(--text2); margin-bottom: 4px; }
+
+/* ===================== MODAL ===================== */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: flex-end; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--bg2); border-radius: var(--radius) var(--radius) 0 0; padding: 24px 20px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; animation: slideUp 0.3s ease; }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal h3 { margin-bottom: 16px; font-size: 1.2rem; }
+
+/* ===================== TOAST ===================== */
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-120px); background: linear-gradient(135deg, var(--purple), var(--purple-dark)); color: #fff; padding: 14px 24px; border-radius: var(--radius-sm); font-weight: 600; font-size: 0.9rem; z-index: 400; transition: transform 0.4s ease; text-align: center; box-shadow: 0 8px 32px var(--purple-glow); max-width: 90%; white-space: pre-line; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ===================== SETTINGS ===================== */
+.setting-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--bg4); }
+.setting-row label { font-size: 0.85rem; }
+.setting-row input { width: 80px; padding: 8px; background: var(--bg3); border: 1px solid var(--bg4); border-radius: var(--radius-sm); color: var(--text); font-size: 0.9rem; text-align: center; font-family: 'Inter', sans-serif; }
+
+/* ===================== MISC ===================== */
+.section-title { font-size: 1rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.section-title .add-btn { background: none; border: none; color: var(--purple-light); font-size: 1.4rem; cursor: pointer; line-height: 1; }
+.empty-state { text-align: center; color: var(--text3); padding: 30px 0; font-size: 0.85rem; }
+.saving-indicator { position: fixed; bottom: 88px; right: 16px; font-size: 0.7rem; color: var(--text3); opacity: 0; transition: opacity 0.3s; }
+.saving-indicator.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SAVING INDICATOR -->
+<div class="saving-indicator" id="savingIndicator">Guardando...</div>
+
+<!-- LOADING SCREEN -->
+<div id="loadingScreen">
+  <div class="spinner"></div>
+  <span style="color:var(--text3);font-size:0.85rem;">Cargando RunQuest...</span>
+</div>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen" style="display:none;">
+  <div class="auth-logo">RunQuest</div>
+  <div class="auth-sub">Registra tu progreso. Gana experiencia. Corre mas lejos.</div>
+  <div class="auth-box">
+    <div class="auth-toggle">
+      <button id="toggleSignIn" class="active" onclick="setAuthMode('signin')">Iniciar sesion</button>
+      <button id="toggleSignUp" onclick="setAuthMode('signup')">Registrarse</button>
+    </div>
+    <div class="auth-error" id="authError"></div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="authEmail" placeholder="tu@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>Contrasena</label>
+      <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') submitAuth()">
+    </div>
+    <button class="btn btn-primary" id="authSubmitBtn" onclick="submitAuth()">Iniciar sesion</button>
+    <div class="auth-divider">o continuar con</div>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <svg class="google-icon" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      Continuar con Google
+    </button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp">
+  <!-- Header -->
+  <div class="app-header">
+    <h1>RunQuest</h1>
+    <div class="user-info">
+      <div class="user-avatar" id="userAvatar" onclick="toggleUserMenu()">
+        <span id="userInitial">?</span>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-email" id="userMenuEmail"></div>
+          <div class="user-menu-item" onclick="signOut()">Cerrar sesion</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Coins -->
+  <div class="coins-bar">
+    <span>&#x1FA99;</span>
+    <span id="coinsDisplay">0</span>
+  </div>
+
+  <!-- Level -->
+  <div class="level-section">
+    <div class="level-bar-wrap">
+      <div class="level-badge" id="levelBadge">1</div>
+      <div class="level-info">
+        <div class="level-title" id="levelTitle">Principiante <span id="levelXP"></span></div>
+        <div class="xp-bar"><div class="xp-bar-fill" id="xpFill"></div></div>
+        <div class="xp-label" id="xpLabel">0 / 100 XP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Streak -->
+  <div class="streak-display">
+    <span class="flame">&#x1F525;</span>
+    <div>
+      <div class="streak-num" id="streakNum">0</div>
+      <div class="streak-label">racha de dias</div>
+    </div>
+  </div>
+  <div class="streak-protector">
+    <span>&#x1F6E1;&#xFE0F; Protectores: <span class="shield-count" id="shieldCount">0</span></span>
+  </div>
+
+  <!-- Stats row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="totalDist">0</div>
+      <div class="stat-label">km totales</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="totalTime">0</div>
+      <div class="stat-label">min totales</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="totalRuns">0</div>
+      <div class="stat-label">carreras</div>
+    </div>
+  </div>
+
+  <!-- HOME PAGE -->
+  <div class="page active" id="pageHome">
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">Registrar carrera</h3>
+    <div class="card">
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="runDate">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group">
+          <label>Distancia (km)</label>
+          <input type="number" id="runDist" step="0.1" min="0" placeholder="5.0">
+        </div>
+        <div class="form-group">
+          <label>Tiempo (min)</label>
+          <input type="number" id="runTime" step="1" min="0" placeholder="30">
+        </div>
+      </div>
+      <button class="btn btn-primary" id="addRunBtn" onclick="addRun()">Registrar carrera</button>
+    </div>
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">Historial reciente</h3>
+    <div class="card" id="logList"><div class="empty-state">Sin carreras registradas</div></div>
+  </div>
+
+  <!-- STATS PAGE -->
+  <div class="page" id="pageStats">
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">Estadisticas semanales</h3>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:0.78rem;color:var(--text2);">Distancia (km)</span>
+        <span style="font-size:0.78rem;color:var(--text3);" id="weekTotal">0 km</span>
+      </div>
+      <div class="weekly-chart" id="weeklyChartDist"></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:0.78rem;color:var(--text2);">Tiempo (min)</span>
+        <span style="font-size:0.78rem;color:var(--text3);" id="weekTotalTime">0 min</span>
+      </div>
+      <div class="weekly-chart" id="weeklyChartTime"></div>
+    </div>
+    <div class="card">
+      <h4 style="font-size:0.9rem;margin-bottom:12px;">Records personales</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="stat-card"><div class="stat-value" id="prDist">0</div><div class="stat-label">km max en una carrera</div></div>
+        <div class="stat-card"><div class="stat-value" id="prTime">0</div><div class="stat-label">min max en una carrera</div></div>
+        <div class="stat-card"><div class="stat-value" id="prStreak">0</div><div class="stat-label">racha maxima</div></div>
+        <div class="stat-card"><div class="stat-value" id="prPace">-</div><div class="stat-label">mejor ritmo (min/km)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REWARDS PAGE -->
+  <div class="page" id="pageRewards">
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">Tienda</h3>
+    <div class="card">
+      <div class="reward-item">
+        <div class="reward-info">
+          <h4>&#x1F6E1;&#xFE0F; Protector de racha</h4>
+          <div class="reward-meta">Protege tu racha un dia</div>
+        </div>
+        <div class="reward-actions">
+          <span style="font-size:0.85rem;font-weight:600;color:var(--gold);" id="shieldCostDisplay">15 &#x1FA99;</span>
+          <button class="btn btn-sm btn-gold" onclick="buyShield()">Comprar</button>
+        </div>
+      </div>
+    </div>
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">
+      Recompensas
+      <button class="add-btn" onclick="openRewardModal()">+</button>
+    </h3>
+    <div id="rewardsList"></div>
+  </div>
+
+  <!-- SETTINGS PAGE -->
+  <div class="page" id="pageSettings">
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">Configuracion</h3>
+    <div class="card">
+      <div class="setting-row">
+        <label>Tiempo objetivo diario (min)</label>
+        <input type="number" id="goalTime" value="20" min="1" onchange="saveSettings()">
+      </div>
+      <div class="setting-row">
+        <label>Costo protector de racha</label>
+        <input type="number" id="shieldCost" value="15" min="1" onchange="saveSettings()">
+      </div>
+      <div class="setting-row">
+        <label>Penalizacion por romper racha</label>
+        <input type="number" id="penaltyAmount" value="2" min="0" onchange="saveSettings()">
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <button class="btn btn-danger" style="width:100%" onclick="confirmReset()">Reiniciar todo</button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('pageHome', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      Inicio
+    </div>
+    <div class="tab" onclick="switchTab('pageStats', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+      Stats
+    </div>
+    <div class="tab" onclick="switchTab('pageRewards', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l6.91-1.01z"/></svg>
+      Premios
+    </div>
+    <div class="tab" onclick="switchTab('pageSettings', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Config
+    </div>
+  </div>
+</div>
+
+<!-- ADD REWARD MODAL -->
+<div class="modal-overlay" id="rewardModal">
+  <div class="modal">
+    <h3>Nueva recompensa</h3>
+    <div class="form-group">
+      <label>Nombre</label>
+      <input type="text" id="rewardName" placeholder="Ej: Helado">
+    </div>
+    <div class="form-group">
+      <label>Costo (monedas)</label>
+      <input type="number" id="rewardCost" min="1" placeholder="10">
+    </div>
+    <div class="form-group">
+      <label>Tipo</label>
+      <select id="rewardType">
+        <option value="recurring">Recurrente</option>
+        <option value="once">Una sola vez</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-outline" style="flex:1" onclick="closeRewardModal()">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveReward()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== CONFIG =====================
+const SUPABASE_URL = '%%SUPABASE_URL%%';
+const SUPABASE_ANON_KEY = '%%SUPABASE_ANON_KEY%%';
+
+// ===================== SUPABASE INIT =====================
+let sb = null;
+function initSupabase() {
+  if (SUPABASE_URL.startsWith('%%') || !SUPABASE_URL) return false;
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return true;
+}
+
+// ===================== CONSTANTS =====================
+const LEVEL_NAMES = [
+  'Principiante','Caminante','Trotador','Corredor','Atleta',
+  'Velocista','Maratonista','Ultra Runner','Leyenda','Titan'
+];
+function xpForLevel(lv) { return Math.floor(100 * Math.pow(1.6, lv - 1)); }
+
+// ===================== IN-MEMORY DATA =====================
+let data = {
+  runs: [], xp: 0, level: 1, coins: 0, streak: 0, bestStreak: 0,
+  shields: 0, lastRunDate: null, rewards: [],
+  settings: { goalTime: 20, shieldCost: 15, penalty: 2 },
+  records: { dist: 0, time: 0, pace: null }
+};
+let currentUser = null;
+
+// ===================== AUDIO =====================
+function playAchievementSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq; osc.type = 'sine';
+      gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.3);
+      osc.start(ctx.currentTime + i * 0.12);
+      osc.stop(ctx.currentTime + i * 0.12 + 0.3);
+    });
+  } catch {}
+}
+
+// ===================== TOAST =====================
+let toastTimer;
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  playAchievementSound();
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ===================== AUTH SCREEN =====================
+let authMode = 'signin';
+function setAuthMode(mode) {
+  authMode = mode;
+  document.getElementById('toggleSignIn').classList.toggle('active', mode === 'signin');
+  document.getElementById('toggleSignUp').classList.toggle('active', mode === 'signup');
+  document.getElementById('authSubmitBtn').textContent = mode === 'signin' ? 'Iniciar sesion' : 'Crear cuenta';
+  document.getElementById('authPassword').autocomplete = mode === 'signin' ? 'current-password' : 'new-password';
+  document.getElementById('authError').style.display = 'none';
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function submitAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const btn = document.getElementById('authSubmitBtn');
+  if (!email || !password) return;
+  btn.disabled = true;
+  btn.textContent = '...';
+  document.getElementById('authError').style.display = 'none';
+  try {
+    let result;
+    if (authMode === 'signin') {
+      result = await sb.auth.signInWithPassword({ email, password });
+    } else {
+      result = await sb.auth.signUp({ email, password });
+    }
+    if (result.error) {
+      showAuthError(translateAuthError(result.error.message));
+    } else if (authMode === 'signup' && !result.data.session) {
+      showAuthError('Revisa tu email para confirmar tu cuenta.');
+    }
+  } catch (e) { showAuthError(e.message); }
+  btn.disabled = false;
+  setAuthMode(authMode);
+}
+
+async function signInWithGoogle() {
+  await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin }
+  });
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  data = { runs: [], xp: 0, level: 1, coins: 0, streak: 0, bestStreak: 0, shields: 0, lastRunDate: null, rewards: [], settings: { goalTime: 20, shieldCost: 15, penalty: 2 }, records: { dist: 0, time: 0, pace: null } };
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('userMenu').classList.remove('show');
+}
+
+function translateAuthError(msg) {
+  const map = {
+    'Invalid login credentials': 'Email o contrasena incorrectos',
+    'Email not confirmed': 'Confirma tu email primero',
+    'User already registered': 'Este email ya esta registrado',
+    'Password should be at least 6 characters': 'La contrasena debe tener al menos 6 caracteres'
+  };
+  return map[msg] || msg;
+}
+
+function toggleUserMenu() {
+  document.getElementById('userMenu').classList.toggle('show');
+}
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('userAvatar').contains(e.target)) {
+    document.getElementById('userMenu').classList.remove('show');
+  }
+});
+
+// ===================== SCREEN FLOW =====================
+function showScreen(screen) {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'none';
+  if (screen === 'loading') document.getElementById('loadingScreen').style.display = 'flex';
+  if (screen === 'auth') document.getElementById('authScreen').style.display = 'flex';
+  if (screen === 'app') document.getElementById('mainApp').style.display = 'block';
+}
+
+// ===================== DATA LOADING =====================
+async function loadUserData() {
+  // Load game state
+  const { data: gs } = await sb.from('user_game_state').select('*').eq('user_id', currentUser.id).maybeSingle();
+  if (gs) {
+    data.xp = gs.xp || 0;
+    data.level = gs.level || 1;
+    data.coins = gs.coins || 0;
+    data.streak = gs.streak || 0;
+    data.bestStreak = gs.best_streak || 0;
+    data.shields = gs.shields || 0;
+    data.lastRunDate = gs.last_run_date || null;
+    data.records = { dist: gs.record_dist || 0, time: gs.record_time || 0, pace: gs.record_pace || null };
+    data.settings = { goalTime: gs.goal_time || 20, shieldCost: gs.shield_cost || 15, penalty: gs.penalty || 2 };
+  } else {
+    await sb.from('user_game_state').insert({ user_id: currentUser.id });
+  }
+
+  // Load runs
+  const { data: runs } = await sb.from('runs').select('*').eq('user_id', currentUser.id).order('date', { ascending: false });
+  data.runs = (runs || []).map(r => ({ id: r.id, date: r.date, dist: r.dist, time: r.time_min, xp: r.xp_gained, metGoal: r.met_goal }));
+
+  // Load rewards
+  const { data: rewards } = await sb.from('rewards').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: true });
+  data.rewards = (rewards || []).map(r => ({ id: r.id, name: r.name, cost: r.cost, type: r.type, redeemed: r.redeemed }));
+}
+
+// ===================== DATA PERSISTENCE =====================
+let saveTimer;
+function scheduleSave() {
+  const ind = document.getElementById('savingIndicator');
+  ind.classList.add('show');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    await persistGameState();
+    ind.classList.remove('show');
+  }, 600);
+}
+
+async function persistGameState() {
+  if (!currentUser || !sb) return;
+  await sb.from('user_game_state').upsert({
+    user_id: currentUser.id,
+    xp: data.xp, level: data.level, coins: data.coins,
+    streak: data.streak, best_streak: data.bestStreak,
+    shields: data.shields, last_run_date: data.lastRunDate,
+    record_dist: data.records.dist, record_time: data.records.time, record_pace: data.records.pace,
+    goal_time: data.settings.goalTime, shield_cost: data.settings.shieldCost, penalty: data.settings.penalty,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+}
+
+// ===================== XP & LEVELS =====================
+function addXP(amount) {
+  data.xp += amount;
+  let leveledUp = false;
+  while (data.xp >= xpForLevel(data.level)) {
+    data.xp -= xpForLevel(data.level);
+    data.level++;
+    leveledUp = true;
+  }
+  if (leveledUp) {
+    const name = LEVEL_NAMES[Math.min(data.level - 1, LEVEL_NAMES.length - 1)];
+    showToast(`\u2b50 Nivel ${data.level}: ${name}!`);
+  }
+}
+
+function renderLevel() {
+  const needed = xpForLevel(data.level);
+  const pct = Math.min((data.xp / needed) * 100, 100);
+  const name = LEVEL_NAMES[Math.min(data.level - 1, LEVEL_NAMES.length - 1)];
+  document.getElementById('levelBadge').textContent = data.level;
+  document.getElementById('levelTitle').innerHTML = `${name} <span>Nivel ${data.level}</span>`;
+  document.getElementById('xpFill').style.width = pct + '%';
+  document.getElementById('xpLabel').textContent = `${data.xp} / ${needed} XP`;
+}
+
+// ===================== STREAK =====================
+function dayDiff(a, b) {
+  const da = new Date(a + 'T12:00:00'), db = new Date(b + 'T12:00:00');
+  return Math.round((db - da) / 86400000);
+}
+
+function updateStreak(dateStr, metGoal) {
+  if (!metGoal) return;
+  const last = data.lastRunDate;
+  if (!last) {
+    data.streak = 1;
+  } else {
+    const diff = dayDiff(last, dateStr);
+    if (diff === 1) {
+      data.streak++;
+    } else if (diff === 0) {
+      // Same day
+    } else if (diff === 2 && data.shields > 0) {
+      data.shields--;
+      data.streak++;
+      showToast('\u{1F6E1}\uFE0F Protector de racha usado!');
+    } else if (diff > 1) {
+      const penalty = data.settings.penalty || 2;
+      data.coins = Math.max(0, data.coins - penalty);
+      showToast(`\u{1F494} Racha perdida! -${penalty} monedas`);
+      data.streak = 1;
+    }
+  }
+  data.lastRunDate = dateStr;
+  if (data.streak > data.bestStreak) {
+    data.bestStreak = data.streak;
+    if (data.streak > 1) showToast(`\u{1F3C6} Nueva mejor racha: ${data.streak} dias!`);
+  }
+  if (data.streak > 0 && data.streak % 3 === 0) {
+    data.coins += 3;
+    showToast(`\u{1F525} Racha de ${data.streak} dias! +3 monedas`);
+  }
+  if (data.streak > 0 && data.streak % 5 === 0) {
+    addXP(25);
+  }
+}
+
+// ===================== ADD RUN =====================
+async function addRun() {
+  const dateEl = document.getElementById('runDate');
+  const distEl = document.getElementById('runDist');
+  const timeEl = document.getElementById('runTime');
+  const date = dateEl.value;
+  const dist = parseFloat(distEl.value) || 0;
+  const time = parseInt(timeEl.value) || 0;
+  if (!date || (dist <= 0 && time <= 0)) return;
+
+  const btn = document.getElementById('addRunBtn');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  const goalTime = data.settings.goalTime || 20;
+  const metGoal = time >= goalTime;
+  let xpGained = Math.floor(dist * 2) + time;
+  if (metGoal) xpGained += 10;
+
+  let coinsGained = Math.floor(dist * 0.5) + Math.floor(time / 10);
+
+  // Check records
+  let newRecord = false;
+  if (dist > data.records.dist) { data.records.dist = dist; newRecord = true; }
+  if (time > data.records.time) { data.records.time = time; newRecord = true; }
+  if (dist > 0 && time > 0) {
+    const pace = time / dist;
+    if (!data.records.pace || pace < data.records.pace) { data.records.pace = pace; newRecord = true; }
+  }
+  if (newRecord) { coinsGained += 5; showToast('\u{1F3C5} Nuevo record personal! +5 monedas'); }
+
+  data.coins += coinsGained;
+  updateStreak(date, metGoal);
+  addXP(xpGained);
+
+  // Save run to Supabase
+  const { data: newRun } = await sb.from('runs').insert({
+    user_id: currentUser.id,
+    date, dist, time_min: time, xp_gained: xpGained, met_goal: metGoal
+  }).select().single();
+
+  data.runs.unshift({ id: newRun.id, date, dist, time, xp: xpGained, metGoal });
+  data.runs.sort((a, b) => b.date.localeCompare(a.date));
+
+  await persistGameState();
+  renderAll();
+
+  distEl.value = ''; timeEl.value = '';
+  btn.disabled = false; btn.textContent = 'Registrar carrera';
+}
+
+// ===================== DELETE RUN =====================
+async function deleteRun(id) {
+  await sb.from('runs').delete().eq('id', id).eq('user_id', currentUser.id);
+  data.runs = data.runs.filter(r => r.id !== id);
+  // Recalculate records
+  data.records = { dist: 0, time: 0, pace: null };
+  data.runs.forEach(r => {
+    if (r.dist > data.records.dist) data.records.dist = r.dist;
+    if (r.time > data.records.time) data.records.time = r.time;
+    if (r.dist > 0 && r.time > 0) {
+      const p = r.time / r.dist;
+      if (!data.records.pace || p < data.records.pace) data.records.pace = p;
+    }
+  });
+  await persistGameState();
+  renderAll();
+}
+
+// ===================== REWARDS =====================
+function openRewardModal() { document.getElementById('rewardModal').classList.add('show'); }
+function closeRewardModal() { document.getElementById('rewardModal').classList.remove('show'); }
+
+async function saveReward() {
+  const name = document.getElementById('rewardName').value.trim();
+  const cost = parseInt(document.getElementById('rewardCost').value) || 0;
+  const type = document.getElementById('rewardType').value;
+  if (!name || cost <= 0) return;
+  const { data: nr } = await sb.from('rewards').insert({ user_id: currentUser.id, name, cost, type, redeemed: false }).select().single();
+  data.rewards.push({ id: nr.id, name, cost, type, redeemed: false });
+  renderRewards();
+  closeRewardModal();
+  document.getElementById('rewardName').value = '';
+  document.getElementById('rewardCost').value = '';
+}
+
+async function redeemReward(id) {
+  const r = data.rewards.find(x => x.id === id);
+  if (!r || data.coins < r.cost) { showToast('No tienes suficientes monedas'); return; }
+  data.coins -= r.cost;
+  if (r.type === 'once') {
+    r.redeemed = true;
+    await sb.from('rewards').update({ redeemed: true }).eq('id', id).eq('user_id', currentUser.id);
+  }
+  await persistGameState();
+  renderAll();
+  showToast(`\u{1F381} ${r.name} canjeada!`);
+}
+
+async function deleteReward(id) {
+  await sb.from('rewards').delete().eq('id', id).eq('user_id', currentUser.id);
+  data.rewards = data.rewards.filter(r => r.id !== id);
+  renderRewards();
+}
+
+// ===================== SHIELD =====================
+async function buyShield() {
+  const cost = data.settings.shieldCost || 15;
+  if (data.coins < cost) { showToast('No tienes suficientes monedas'); return; }
+  data.coins -= cost;
+  data.shields++;
+  scheduleSave();
+  renderAll();
+  showToast('\u{1F6E1}\uFE0F Protector de racha comprado!');
+}
+
+// ===================== SETTINGS =====================
+function saveSettings() {
+  data.settings.goalTime = parseInt(document.getElementById('goalTime').value) || 20;
+  data.settings.shieldCost = parseInt(document.getElementById('shieldCost').value) || 15;
+  data.settings.penalty = parseInt(document.getElementById('penaltyAmount').value) || 2;
+  scheduleSave();
+  renderAll();
+}
+
+async function confirmReset() {
+  if (!confirm('Seguro que quieres reiniciar todo? Se perderan todos los datos.')) return;
+  await sb.from('runs').delete().eq('user_id', currentUser.id);
+  await sb.from('rewards').delete().eq('user_id', currentUser.id);
+  await sb.from('user_game_state').delete().eq('user_id', currentUser.id);
+  data = { runs: [], xp: 0, level: 1, coins: 0, streak: 0, bestStreak: 0, shields: 0, lastRunDate: null, rewards: [], settings: { goalTime: 20, shieldCost: 15, penalty: 2 }, records: { dist: 0, time: 0, pace: null } };
+  await sb.from('user_game_state').insert({ user_id: currentUser.id });
+  renderAll();
+}
+
+// ===================== RENDER =====================
+function renderAll() {
+  renderLevel();
+  document.getElementById('coinsDisplay').textContent = data.coins;
+  document.getElementById('streakNum').textContent = data.streak;
+  document.getElementById('shieldCount').textContent = data.shields;
+  document.getElementById('shieldCostDisplay').textContent = `${data.settings.shieldCost || 15} \u{1FA99}`;
+  const totalDist = data.runs.reduce((s, r) => s + r.dist, 0);
+  const totalTime = data.runs.reduce((s, r) => s + r.time, 0);
+  document.getElementById('totalDist').textContent = totalDist.toFixed(1);
+  document.getElementById('totalTime').textContent = totalTime;
+  document.getElementById('totalRuns').textContent = data.runs.length;
+  document.getElementById('prDist').textContent = data.records.dist.toFixed(1);
+  document.getElementById('prTime').textContent = data.records.time;
+  document.getElementById('prStreak').textContent = data.bestStreak;
+  document.getElementById('prPace').textContent = data.records.pace ? data.records.pace.toFixed(2) : '-';
+  renderLog();
+  renderRewards();
+  renderSettings();
+}
+
+function renderLog() {
+  const el = document.getElementById('logList');
+  if (data.runs.length === 0) { el.innerHTML = '<div class="empty-state">Sin carreras registradas</div>'; return; }
+  el.innerHTML = data.runs.slice(0, 15).map(r => {
+    const d = new Date(r.date + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+    const tag = r.metGoal ? '<span class="goal-indicator goal-met">Objetivo</span>' : '<span class="goal-indicator goal-missed">No objetivo</span>';
+    return `<div class="log-entry">
+      <div><div class="log-date">${dateStr} ${tag}</div></div>
+      <div class="log-stats">
+        <span>${r.dist} km</span>
+        <span>${r.time} min</span>
+        <span class="log-xp">+${r.xp} XP</span>
+        <button class="log-delete" onclick="deleteRun('${r.id}')">&times;</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderRewards() {
+  const el = document.getElementById('rewardsList');
+  if (data.rewards.length === 0) { el.innerHTML = '<div class="card"><div class="empty-state">Agrega recompensas para canjear tus monedas</div></div>'; return; }
+  el.innerHTML = data.rewards.map(r => {
+    const typeLabel = r.type === 'recurring' ? 'Recurrente' : 'Una vez';
+    const badge = r.redeemed ? '<span class="redeemed-badge">Canjeada</span>' : '';
+    const canRedeem = !r.redeemed || r.type === 'recurring';
+    return `<div class="reward-item">
+      <div class="reward-info">
+        <h4>${r.name} ${badge}</h4>
+        <div class="reward-meta">${typeLabel} &middot; ${r.cost} monedas</div>
+      </div>
+      <div class="reward-actions">
+        ${canRedeem ? `<button class="btn btn-sm btn-green" onclick="redeemReward('${r.id}')">Canjear</button>` : ''}
+        <button class="btn btn-sm btn-outline" onclick="deleteReward('${r.id}')" style="padding:8px 10px;color:var(--red);border-color:var(--red);">&times;</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSettings() {
+  document.getElementById('goalTime').value = data.settings.goalTime || 20;
+  document.getElementById('shieldCost').value = data.settings.shieldCost || 15;
+  document.getElementById('penaltyAmount').value = data.settings.penalty || 2;
+}
+
+// ===================== WEEKLY CHART =====================
+function renderWeekly() {
+  const days = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
+  const today = new Date();
+  const dayOfWeek = (today.getDay() + 6) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - dayOfWeek);
+  monday.setHours(0,0,0,0);
+  const weekDist = new Array(7).fill(0), weekTime = new Array(7).fill(0);
+  data.runs.forEach(r => {
+    const rd = new Date(r.date + 'T12:00:00');
+    rd.setHours(0,0,0,0);
+    const diff = Math.round((rd - monday) / 86400000);
+    if (diff >= 0 && diff < 7) { weekDist[diff] += r.dist; weekTime[diff] += r.time; }
+  });
+  const maxD = Math.max(...weekDist, 1), maxT = Math.max(...weekTime, 1);
+  const mkChart = (vals, max, id) => {
+    document.getElementById(id).innerHTML = days.map((d, i) => {
+      const h = vals[i] > 0 ? Math.max(8, (vals[i] / max) * 100) : 0;
+      return `<div class="weekly-bar-wrap">
+        <div class="weekly-val">${vals[i] > 0 ? vals[i].toFixed ? vals[i].toFixed(1) : vals[i] : ''}</div>
+        <div class="weekly-bar ${vals[i] === 0 ? 'empty' : ''}" style="height:${h}%"></div>
+        <div class="weekly-day">${d}</div>
+      </div>`;
+    }).join('');
+  };
+  mkChart(weekDist, maxD, 'weeklyChartDist');
+  mkChart(weekTime, maxT, 'weeklyChartTime');
+  document.getElementById('weekTotal').textContent = weekDist.reduce((a,b)=>a+b,0).toFixed(1) + ' km';
+  document.getElementById('weekTotalTime').textContent = weekTime.reduce((a,b)=>a+b,0) + ' min';
+}
+
+// ===================== TABS =====================
+function switchTab(pageId, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  el.classList.add('active');
+  if (pageId === 'pageStats') renderWeekly();
+}
+
+// ===================== INIT =====================
+async function init() {
+  showScreen('loading');
+  if (!initSupabase()) {
+    document.getElementById('loadingScreen').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3)"><h2 style="color:var(--purple-light);margin-bottom:16px;">Configuracion pendiente</h2><p style="font-size:0.85rem;line-height:1.6">Esta app necesita ser desplegada con las variables de entorno de Supabase.<br><br>Ejecuta:<br><code style="color:var(--text)">node build.js</code><br>con SUPABASE_URL y SUPABASE_ANON_KEY configurados.</p></div>';
+    return;
+  }
+
+  // Auth state listener
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+      if (session) {
+        currentUser = session.user;
+        document.getElementById('userInitial').textContent = currentUser.email[0].toUpperCase();
+        document.getElementById('userMenuEmail').textContent = currentUser.email;
+        showScreen('loading');
+        await loadUserData();
+        document.getElementById('runDate').valueAsDate = new Date();
+        renderAll();
+        showScreen('app');
+      } else {
+        showScreen('auth');
+      }
+    } else if (event === 'SIGNED_OUT') {
+      showScreen('auth');
+    }
+  });
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) showScreen('auth');
+}
+
+init();
+</script>
+</body>
+</html>
