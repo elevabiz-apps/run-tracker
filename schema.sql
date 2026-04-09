@@ -88,6 +88,11 @@ CREATE TABLE IF NOT EXISTS user_challenges (
 ALTER TABLE user_challenges ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "own_challenges" ON user_challenges FOR ALL USING (auth.uid() = user_id);
 
+-- Restriccion unica para evitar duplicados
+ALTER TABLE user_challenges
+  ADD CONSTRAINT unique_user_challenge
+  UNIQUE (user_id, challenge_period, period_start, template_id);
+
 -- ===================== TRIGGER: crear estado al registrarse =====================
 
 CREATE OR REPLACE FUNCTION handle_new_user()

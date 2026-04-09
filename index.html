@@ -900,7 +900,10 @@ h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
 
   <!-- REWARDS PAGE -->
   <div class="page" id="pageRewards">
-    <h3 class="section-title" style="font-family:'Playfair Display',serif;">Desafios semanales</h3>
+    <h3 class="section-title" style="font-family:'Playfair Display',serif;">
+      Desafios semanales
+      <button id="refreshChallengesBtn" onclick="refreshChallenges()" style="background:none;border:none;color:var(--purple-light);font-size:1.1rem;cursor:pointer;padding:2px 6px;" title="Actualizar desafios">&#8635;</button>
+    </h3>
     <div id="weekChallengesList"></div>
     <h3 class="section-title" style="font-family:'Playfair Display',serif;">Desafios mensuales</h3>
     <div id="monthChallengesList"></div>
@@ -1187,31 +1190,50 @@ async function loadChallenges() {
   data.challenges = (rows || []).map(mapChallenge);
 }
 
+let _ensuringChallenges = false;
 async function ensureChallengesExist() {
-  const wStart = getWeekStart(), mStart = getMonthStart();
-  const hasWeekly  = data.challenges.some(c => c.period === 'weekly'  && c.periodStart === wStart);
-  const hasMonthly = data.challenges.some(c => c.period === 'monthly' && c.periodStart === mStart);
-  const toInsert = [];
-  if (!hasWeekly) {
-    const wEnd = getWeekEnd();
-    seededPick(WEEKLY_TEMPLATES, wStart, 3).forEach(t => toInsert.push({
-      user_id:currentUser.id, challenge_period:'weekly', template_id:t.id,
-      metric:t.metric, label:t.label, icon:t.icon, target:t.target,
-      reward_coins:t.coins, reward_xp:t.xp, period_start:wStart, period_end:wEnd
-    }));
+  if (_ensuringChallenges) return;
+  _ensuringChallenges = true;
+  try {
+    const wStart = getWeekStart(), mStart = getMonthStart();
+    const hasWeekly  = data.challenges.some(c => c.period === 'weekly'  && c.periodStart === wStart);
+    const hasMonthly = data.challenges.some(c => c.period === 'monthly' && c.periodStart === mStart);
+    const toInsert = [];
+    if (!hasWeekly) {
+      const wEnd = getWeekEnd();
+      seededPick(WEEKLY_TEMPLATES, wStart, 3).forEach(t => toInsert.push({
+        user_id:currentUser.id, challenge_period:'weekly', template_id:t.id,
+        metric:t.metric, label:t.label, icon:t.icon, target:t.target,
+        reward_coins:t.coins, reward_xp:t.xp, period_start:wStart, period_end:wEnd
+      }));
+    }
+    if (!hasMonthly) {
+      const mEnd = getMonthEnd();
+      seededPick(MONTHLY_TEMPLATES, mStart, 3).forEach(t => toInsert.push({
+        user_id:currentUser.id, challenge_period:'monthly', template_id:t.id,
+        metric:t.metric, label:t.label, icon:t.icon, target:t.target,
+        reward_coins:t.coins, reward_xp:t.xp, period_start:mStart, period_end:mEnd
+      }));
+    }
+    if (toInsert.length > 0) {
+      await sb.from('user_challenges').upsert(toInsert, {
+        onConflict: 'user_id,challenge_period,period_start,template_id',
+        ignoreDuplicates: true
+      });
+      await loadChallenges();
+    }
+  } finally {
+    _ensuringChallenges = false;
   }
-  if (!hasMonthly) {
-    const mEnd = getMonthEnd();
-    seededPick(MONTHLY_TEMPLATES, mStart, 3).forEach(t => toInsert.push({
-      user_id:currentUser.id, challenge_period:'monthly', template_id:t.id,
-      metric:t.metric, label:t.label, icon:t.icon, target:t.target,
-      reward_coins:t.coins, reward_xp:t.xp, period_start:mStart, period_end:mEnd
-    }));
-  }
-  if (toInsert.length > 0) {
-    await sb.from('user_challenges').insert(toInsert);
-    await loadChallenges();
-  }
+}
+
+async function refreshChallenges() {
+  const btn = document.getElementById('refreshChallengesBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  await loadChallenges();
+  await ensureChallengesExist();
+  renderChallenges();
+  if (btn) { btn.disabled = false; btn.textContent = '↻'; }
 }
 
 async function checkChallengeCompletions() {
@@ -1876,9 +1898,12 @@ async function init() {
   // Fallback: si en 10s no se resuelve la sesion, ir a auth
   const fallback = setTimeout(() => showScreen('auth'), 10000);
 
+  let _appLoaded = false;
   sb.auth.onAuthStateChange(async (event, session) => {
     clearTimeout(fallback);
     if (session) {
+      if (_appLoaded) return; // evitar doble carga (INITIAL_SESSION + SIGNED_IN)
+      _appLoaded = true;
       currentUser = session.user;
       const email = currentUser.email || currentUser.user_metadata?.email || '';
       document.getElementById('userInitial').textContent = email ? email[0].toUpperCase() : '?';
@@ -1901,6 +1926,7 @@ async function init() {
           </div>`;
       }
     } else {
+      _appLoaded = false; // permitir re-login
       showScreen('auth');
     }
   });
