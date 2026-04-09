@@ -1027,15 +1027,9 @@ h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
         <input type="number" id="chalTarget" min="1" placeholder="5">
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="form-group">
-        <label>Recompensa monedas</label>
-        <input type="number" id="chalCoins" min="0" placeholder="10">
-      </div>
-      <div class="form-group">
-        <label>Recompensa XP</label>
-        <input type="number" id="chalXp" min="0" placeholder="25">
-      </div>
+    <div id="chalRewardPreview" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);border-radius:10px;padding:10px 14px;font-size:13px;color:#c4b5fd;display:flex;align-items:center;gap:8px;">
+      <span style="opacity:0.7">Recompensa estimada:</span>
+      <span id="chalRewardText" style="font-weight:600;color:#a855f7;">— monedas, — XP</span>
     </div>
     <div style="display:flex;gap:10px;margin-top:4px;">
       <button class="btn btn-outline" style="flex:1" onclick="closeChallengeModal()">Cancelar</button>
@@ -1063,6 +1057,23 @@ const LEVEL_NAMES = [
   'Velocista','Maratonista','Ultra Runner','Leyenda','Titan'
 ];
 function xpForLevel(lv) { return Math.floor(100 * Math.pow(1.6, lv - 1)); }
+
+// Calculates rewards automatically based on challenge difficulty
+function calcRewards(metric, target, period) {
+  const scales = {
+    weekly:  { days:[1,7],   km:[1,50],   minutes:[10,300],  goals:[1,7],  runs:[1,15], single_km:[1,21] },
+    monthly: { days:[1,30],  km:[5,200],  minutes:[30,1200], goals:[1,30], runs:[1,60], single_km:[1,21] }
+  };
+  const scaleSet = scales[period] || scales.weekly;
+  const [sMin, sMax] = scaleSet[metric] || [1, 100];
+  const norm  = Math.max(0, Math.min(1.5, (target - sMin) / (sMax - sMin)));
+  const score = Math.pow(norm, 0.7);
+  const mult  = period === 'monthly' ? 3.2 : 1;
+  return {
+    coins: Math.max(2, Math.round((3 + score * 22) * mult)),
+    xp:    Math.max(5, Math.round((10 + score * 55) * mult))
+  };
+}
 
 const WEEKLY_TEMPLATES = [
   { id:'w_days_2',    icon:'📅', label:'Correr 2 dias esta semana',    metric:'days',      target:2,   coins:5,  xp:15 },
@@ -1249,19 +1260,25 @@ async function ensureChallengesExist() {
     const toInsert = [];
     if (!hasWeekly) {
       const wEnd = getWeekEnd();
-      seededPick(WEEKLY_TEMPLATES, wStart, 3).forEach(t => toInsert.push({
-        user_id:currentUser.id, challenge_period:'weekly', template_id:t.id,
-        metric:t.metric, label:t.label, icon:t.icon, target:t.target,
-        reward_coins:t.coins, reward_xp:t.xp, period_start:wStart, period_end:wEnd
-      }));
+      seededPick(WEEKLY_TEMPLATES, wStart, 3).forEach(t => {
+        const r = calcRewards(t.metric, t.target, 'weekly');
+        toInsert.push({
+          user_id:currentUser.id, challenge_period:'weekly', template_id:t.id,
+          metric:t.metric, label:t.label, icon:t.icon, target:t.target,
+          reward_coins:r.coins, reward_xp:r.xp, period_start:wStart, period_end:wEnd
+        });
+      });
     }
     if (!hasMonthly) {
       const mEnd = getMonthEnd();
-      seededPick(MONTHLY_TEMPLATES, mStart, 3).forEach(t => toInsert.push({
-        user_id:currentUser.id, challenge_period:'monthly', template_id:t.id,
-        metric:t.metric, label:t.label, icon:t.icon, target:t.target,
-        reward_coins:t.coins, reward_xp:t.xp, period_start:mStart, period_end:mEnd
-      }));
+      seededPick(MONTHLY_TEMPLATES, mStart, 3).forEach(t => {
+        const r = calcRewards(t.metric, t.target, 'monthly');
+        toInsert.push({
+          user_id:currentUser.id, challenge_period:'monthly', template_id:t.id,
+          metric:t.metric, label:t.label, icon:t.icon, target:t.target,
+          reward_coins:r.coins, reward_xp:r.xp, period_start:mStart, period_end:mEnd
+        });
+      });
     }
     if (toInsert.length > 0) {
       await sb.from('user_challenges').upsert(toInsert, {
@@ -1285,14 +1302,27 @@ async function refreshChallenges() {
 }
 
 let _chalPeriod = 'weekly';
+function updateChalRewardPreview() {
+  const metric = document.getElementById('chalMetric').value;
+  const target = parseInt(document.getElementById('chalTarget').value) || 0;
+  const el = document.getElementById('chalRewardText');
+  if (!el) return;
+  if (target <= 0) { el.textContent = '— monedas, — XP'; return; }
+  const r = calcRewards(metric, target, _chalPeriod);
+  el.textContent = `${r.coins} monedas, ${r.xp} XP`;
+}
 function openChallengeModal(period) {
   _chalPeriod = period;
   document.getElementById('challengeModalTitle').textContent =
     period === 'weekly' ? 'Nuevo desafio semanal' : 'Nuevo desafio mensual';
   document.getElementById('chalLabel').value = '';
   document.getElementById('chalTarget').value = '';
-  document.getElementById('chalCoins').value = '';
-  document.getElementById('chalXp').value = '';
+  document.getElementById('chalRewardText').textContent = '— monedas, — XP';
+  // attach live-preview listeners (safe to add multiple times — replaced each open)
+  const metricEl = document.getElementById('chalMetric');
+  const targetEl = document.getElementById('chalTarget');
+  metricEl.onchange = updateChalRewardPreview;
+  targetEl.oninput  = updateChalRewardPreview;
   document.getElementById('challengeModal').classList.add('show');
 }
 function closeChallengeModal() {
@@ -1303,9 +1333,8 @@ async function saveCustomChallenge() {
   const label  = document.getElementById('chalLabel').value.trim();
   const metric = document.getElementById('chalMetric').value;
   const target = parseInt(document.getElementById('chalTarget').value) || 0;
-  const coins  = parseInt(document.getElementById('chalCoins').value) || 0;
-  const xp     = parseInt(document.getElementById('chalXp').value) || 0;
   if (!label || target <= 0) return;
+  const { coins, xp } = calcRewards(metric, target, _chalPeriod);
 
   const btn = document.getElementById('chalSaveBtn');
   btn.disabled = true; btn.textContent = 'Guardando...';
